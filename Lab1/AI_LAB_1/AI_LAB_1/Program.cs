@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 
+using ScottPlot;
+
 using AI_LAB_1.Preprocessing;
 using AI_LAB_1.Preprocessing.AI;
 using AI_LAB_1.Preprocessing.Processors;
@@ -16,18 +18,21 @@ namespace AI_LAB_1
         {
             Dictionary<string, bool> files = new Dictionary<string, bool>()
             {
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\1.txt", true }, //нефть
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\2.txt", true }, //нефть
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\3.txt", true }, //нефть
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\4.txt", false },
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\5.txt", false },
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\6.txt", false },
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\7.txt", false },
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\8.txt", false },
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\9.txt", false },
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\10.txt", true }, //нефть
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\11.txt", false },
-                { @"D:\!!!OLEG\!!!WORK\Studying\ИАД\Lab\Lab1\Data\12.txt", false },
+                { Environment.CurrentDirectory + "/Data/1.txt", true }, //нефть
+                { Environment.CurrentDirectory + "/Data/4.txt", false },
+                { Environment.CurrentDirectory + "/Data/5.txt", false },
+                { Environment.CurrentDirectory + "/Data/2.txt", true }, //нефть
+                { Environment.CurrentDirectory + "/Data/6.txt", false },
+                { Environment.CurrentDirectory + "/Data/7.txt", false },
+                { Environment.CurrentDirectory + "/Data/3.txt", true }, //нефть
+                { Environment.CurrentDirectory + "/Data/8.txt", false },
+                { Environment.CurrentDirectory + "/Data/9.txt", false },
+                { Environment.CurrentDirectory + "/Data/10.txt", true }, //нефть
+                { Environment.CurrentDirectory + "/Data/11.txt", false },
+                { Environment.CurrentDirectory + "/Data/12.txt", false },
+                { Environment.CurrentDirectory + "/Data/13.txt", true }, //нефть
+                { Environment.CurrentDirectory + "/Data/14.txt", false },
+                { Environment.CurrentDirectory + "/Data/15.txt", false },
             };
 
             Dictionary<string, bool> texts = files.ToDictionary(
@@ -46,38 +51,55 @@ namespace AI_LAB_1
                     .Context
             );
 
-            BaesianClassifier<string> classifier = new BaesianClassifier<string>();
-
-            double teachRatio = 2.0 / 3.0;
             Random random = new Random();
+            Dictionary<int, double> correctAnswerPercentByTeachSetsCount = new Dictionary<int, double>();
 
-            Dictionary<(string, bool), string[]> teachSets = new Dictionary<(string, bool), string[]>();
-            Dictionary<(string, bool), string[]> testSets = new Dictionary<(string, bool), string[]>();
-
-            foreach(KeyValuePair<(string, bool), string[]> kvp in dataSets)
+            for (int teachSetsCount = 3; teachSetsCount <= dataSets.Count * 2 / 3.0; ++teachSetsCount)
             {
-                if(random.NextDouble() < teachRatio)
-                    teachSets.Add(kvp.Key, kvp.Value);
-                else
-                    testSets.Add(kvp.Key, kvp.Value);
+                Console.WriteLine($"Teaching on {teachSetsCount} sets");
+
+                BaesianClassifier<string> classifier = new BaesianClassifier<string>();
+                Dictionary<(string, bool), string[]> dataSetsCopy = dataSets.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+                for (int j = 0; j < teachSetsCount; ++j)
+                {
+                    //int setId = random.Next(0, dataSetsCopy.Count);
+
+                    KeyValuePair<(string, bool), string[]> teachDataSet = dataSetsCopy.ElementAt(0);
+                    dataSetsCopy.Remove(teachDataSet.Key);
+
+                    classifier.Teach(teachDataSet.Value, teachDataSet.Key.Item2);
+                }
+
+                //GROUP A IS SPAM
+                //GROUP B IS NOT SPAM
+
+                int correctCount = 0;
+
+                Console.WriteLine($"Testing on {dataSetsCopy.Count} sets");
+
+                foreach (KeyValuePair<(string, bool), string[]> testSet in dataSetsCopy)
+                {
+                    Probability probability = classifier.Predict(testSet.Value);
+                    bool isSpam = probability.ProbabilityA > probability.ProbabilityB;
+
+                    string resultText = isSpam ? "SPAM DETECTED" : "No spam";
+                    string actualText = testSet.Key.Item2 ? "SPAM" : "NOT SPAM";
+
+                    if (testSet.Key.Item2 == isSpam)
+                        ++correctCount;
+
+                    Console.WriteLine(testSet.Key.Item1);
+                    Console.WriteLine($"\n{resultText}\nActually was {actualText}\n\n************************************************\n\n");
+                }
+
+                correctAnswerPercentByTeachSetsCount.Add(teachSetsCount, (double)correctCount / dataSetsCopy.Count);
             }
 
-            //GROUP A IS SPAM
-            //GROUP B IS NOT SPAM
+            Plot plot = new Plot();
 
-            foreach (KeyValuePair<(string, bool), string[]> teachSet in teachSets)
-                classifier.Teach(teachSet.Value, teachSet.Key.Item2);
-
-            foreach(KeyValuePair<(string, bool), string[]> testSet in testSets)
-            {
-                Probability probability = classifier.Predict(testSet.Value);
-
-                string resultText = probability.ProbabilityA > probability.ProbabilityB ? "SPAM DETECTED" : "No spam";
-                string actualText = testSet.Key.Item2 ? "SPAM" : "NOT SPAM";
-
-                Console.WriteLine(testSet.Key.Item1);
-                Console.WriteLine($"\n{resultText}\nActually was {actualText}\n\n************************************************\n\n");
-            }
+            plot.AddSignalXY(correctAnswerPercentByTeachSetsCount.Keys.Select(k => (double)k).ToArray(), correctAnswerPercentByTeachSetsCount.Values.ToArray());
+            plot.Render().Save(Environment.CurrentDirectory + "/Data/result.png");
 
             Console.ReadLine();
         }
