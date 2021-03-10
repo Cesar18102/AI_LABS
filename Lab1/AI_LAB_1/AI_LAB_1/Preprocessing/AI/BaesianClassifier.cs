@@ -35,34 +35,6 @@ namespace AI_LAB_1.Preprocessing.AI
             }
         }
 
-        public Probability GetProbabilityForItem(TX item)
-        {
-            if (!GlobalStats.ContainsKey(item))
-                return new Probability();
-
-            Counter counter = GlobalStats[item];
-            double probabilityA = counter.CountA / (counter.CountA + counter.CountB);
-
-            return new Probability() 
-            {
-                ProbabilityA = probabilityA, 
-                ProbabilityB = 1 - probabilityA 
-            };
-        }
-
-        public Probability GetNormalizedProbabilityForItem(TX item)
-        {
-            Counter counter = GlobalStats.ContainsKey(item) ? GlobalStats[item] : new Counter();
-            double probabilityA = counter.CountA == 0 ? 0 : counter.CountA / (counter.CountA + counter.CountB);
-
-            double normalizedProbabilityA = (counter.CountA * probabilityA + 0.5) / (counter.CountA + 1);
-            return new Probability()
-            {
-                ProbabilityA = normalizedProbabilityA,
-                ProbabilityB = 1 - normalizedProbabilityA
-            };
-        }
-
         public Probability Predict(IEnumerable<TX> test)
         {
             Probability probability = new Probability()
@@ -79,6 +51,19 @@ namespace AI_LAB_1.Preprocessing.AI
             }
 
             return probability;
+        }
+
+        private Probability GetNormalizedProbabilityForItem(TX item)
+        {
+            Counter counter = GlobalStats.ContainsKey(item) ? GlobalStats[item] : new Counter();
+            double probabilityA = counter.CountA == 0 ? 0 : counter.CountA / (counter.CountA + counter.CountB);
+
+            double normalizedProbabilityA = (counter.CountA * probabilityA + 0.5) / (counter.CountA + 1);
+            return new Probability()
+            {
+                ProbabilityA = normalizedProbabilityA,
+                ProbabilityB = 1 - normalizedProbabilityA
+            };
         }
 
         private Dictionary<TX, int> GetStats(IEnumerable<TX> data)

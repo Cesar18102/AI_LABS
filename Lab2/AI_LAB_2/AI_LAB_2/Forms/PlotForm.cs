@@ -2,23 +2,30 @@
 using System.Windows.Forms;
 using System.Drawing;
 using System.Linq;
+using System.IO;
 
 using ScottPlot;
+using System;
 
 namespace AI_LAB_2.Forms
 {
     public partial class PlotForm : Form
     {
-        public PlotForm(Plot plot)
+        public PlotForm(Plot plot, string label)
         {
             InitializeComponent();
             PlotPictureBox.Image = plot.Render();
+
+            PlotPictureBox.Image.Save(Environment.CurrentDirectory + "/Out/" + label + ".jpg");
         }
 
-        public PlotForm(IEnumerable<Plot> plots)
+        public PlotForm(IEnumerable<Plot> plots, string label)
         {
+            int i = 1;
+
             InitializeComponent();
             PlotPictureBox.Image = plots.First().Render();
+            PlotPictureBox.Image.Save(Environment.CurrentDirectory + "/Out/" + label + i + ".jpg");
 
             int lastY = PlotPictureBox.Location.Y;
 
@@ -38,6 +45,9 @@ namespace AI_LAB_2.Forms
                 lastY = picture.Location.Y;
 
                 this.Controls.Add(picture);
+
+                ++i;
+                picture.Image.Save(Environment.CurrentDirectory + "/Out/" + label + i + ".jpg");
             }
         }
     }
